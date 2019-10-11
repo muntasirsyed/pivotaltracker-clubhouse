@@ -8,16 +8,16 @@ def _run():
     args = _get_args()
     purl = 'https://www.pivotaltracker.com/services/v5/projects/{0}/stories'.format(args.pproject)
     pheaders = {'X-TrackerToken': args.ptoken}
-    pquery = {'filter': 'type:feature,chore,bug AND -state:accepted AND label:clubhouse'}
+    pquery = {'filter': 'type:feature OR type:bug OR type:release OR type:chore'}
     offset = 0
-    response = requests.head(purl, headers=pheaders, params=pquery)
+    response = requests.get(purl, headers=pheaders)
     assert response.status_code == 200, response.text
-    total = int(response.headers['x-tracker-pagination-total'])
-    limit = int(response.headers['x-tracker-pagination-limit'])
+    total = int(response.headers.get('X-Tracker-Pagination-Total'))
+    limit = int(response.headers.get('X-Tracker-Pagination-Limit'))
 
     while offset < total:
         print "offset={0}, batch_size={1}, total={2}".format(offset, limit, total)
-        pstories, limit, offset, total = _fetch_batch(offset, purl, pheaders, pquery)
+        pstories, limit, offset = _fetch_batch(offset, purl, pheaders, pquery)
         cstories = [_convert_story(pstory, args.cproject) for pstory in pstories]
         if args.dry_run:
             print '{} total stories retrieved: '.format(len(cstories))
@@ -42,10 +42,9 @@ def _fetch_batch(offset, purl, pheaders, pquery):
     response = requests.get(purl, headers=pheaders, params=pquery)
     assert response.status_code == 200, response.text
     pstories = response.json()
-    limit = int(response.headers['x-tracker-pagination-limit'])
-    offset = int(response.headers['x-tracker-pagination-offset'])
-    total = int(response.headers['x-tracker-pagination-total'])
-    return pstories, limit, offset, total
+    limit = int(response.headers.get('X-Tracker-Pagination-Limit'))
+    offset = int(response.headers.get('X-Tracker-Pagination-Offset'))
+    return pstories, limit, offset
 
 
 def _get_args():
